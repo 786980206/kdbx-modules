@@ -553,6 +553,44 @@ p_deleteRows:{[tablePath;criteria]
 
 // @kind function
 // @subcategory tbl
+// @overview upsert data into a table.
+// @param tabRef {symbol | hsym | (hsym; symbol; symbol)} Table reference
+// @param data {table} Table data.
+// @param uk {symbol[]} The columns to be used as unique key
+// @return {symbol | hsym | (hsym; symbol; symbol)} The table reference.
+// @doctest
+.z.m.upsert:{[tabRef;data;uk]
+  tabRefDesc:describe tabRef;
+  tableType:tabRefDesc`type;
+  tableName:tabRefDesc`name;
+
+  $[tableType=`Plain;
+    tabRef set 0!(uk xkey select from tabRef) upsert data;
+    tableType=`Serialized;
+    tabRef set 0!(uk xkey select from tabRef) upsert data;
+    tableType=`Splayed;
+    [
+      dbDir:tabRefDesc`dbDir;
+      data: .Q.en[dbDir; data];
+      tabRef set 0!(uk xkey select from tabRef) upsert data;
+    ];
+    // tableType=`Partitioned
+    [
+      dbDir:tabRefDesc`dbDir;
+      data: .Q.en[dbDir; data];
+      parField:pdb.getPartitionField dbDir;
+      par2criteria:{(in;(flip;(!;enlist y;(enlist,y)));?[z[x];();0b;y!y])}[;uk except parField;data] each group data parField;
+      criterias:{((=;z;x);y)}[;;parField]'[key par2criteria;value par2criteria];
+      deleteRows[tabRef] each criterias;
+      .z.m.insert[tabRef; data];
+      ]
+   ];
+  tabRef
+ };
+
+
+// @kind function
+// @subcategory tbl
 // @overview Raise ColumnNotFoundError if a column is not found from a table.
 // @param table {table | symbol | hsym | (hsym; symbol; symbol)} Table value or reference.
 // @param column {symbol} A column name.
@@ -1554,4 +1592,4 @@ keepAttr:{[func]
  };
 
 
-export:([addColumn;apply;at;castColumn;columnExists;columns;copyColumn;.z.m.count;create;deleteColumn;deleteRows;describe;drop;exists;fix;foreignKeys;getAttr;getType;.z.m.insert;keepAttr;.z.m.key;.z.m.meta;raiseIfColumnExists;raiseIfColumnNameInvalid;raiseIfColumnNotFound;rename;renameColumns;reorderColumns;.z.m.select;selectLimit;selectLimitSort;setAttr;.z.m.update;p_deleteColumnData;p_deleteColumn;p_addColumn]);
+export:([addColumn;apply;at;castColumn;columnExists;columns;copyColumn;.z.m.count;create;deleteColumn;deleteRows;.z.m.upsert;describe;drop;exists;fix;foreignKeys;getAttr;getType;.z.m.insert;keepAttr;.z.m.key;.z.m.meta;raiseIfColumnExists;raiseIfColumnNameInvalid;raiseIfColumnNotFound;rename;renameColumns;reorderColumns;.z.m.select;selectLimit;selectLimitSort;setAttr;.z.m.update;p_deleteColumnData;p_deleteColumn;p_addColumn]);
